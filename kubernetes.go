@@ -23,15 +23,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"html/template"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
-
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
+	"html/template"
+	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -40,6 +35,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 var (
@@ -116,10 +115,10 @@ func watchForPersistentVolumeClaims(ch chan struct{}, watchNamespace string) {
 				return
 			}
 			if provisionedByAwsEfs(pvc) {
-				efsClient.addEFSVolumeTags(parseAWSEFSVolumeID(volumeID), tags)
+				efsClient.addEFSVolumeTags(parseAWSEFSVolumeID(volumeID), tags, *pvc.Spec.StorageClassName)
 			}
 			if provisionedByAwsEbs(pvc) {
-				ec2Client.addEBSVolumeTags(volumeID, tags)
+				ec2Client.addEBSVolumeTags(volumeID, tags, *pvc.Spec.StorageClassName)
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
@@ -149,7 +148,7 @@ func watchForPersistentVolumeClaims(ch chan struct{}, watchNamespace string) {
 			}
 
 			if provisionedByAwsEfs(newPVC) {
-				efsClient.addEFSVolumeTags(parseAWSEFSVolumeID(volumeID), tags)
+				efsClient.addEFSVolumeTags(parseAWSEFSVolumeID(volumeID), tags, *newPVC.Spec.StorageClassName)
 			}
 			if provisionedByAwsEbs(newPVC) {
 				ec2Client.addEBSVolumeTags(volumeID, tags, *newPVC.Spec.StorageClassName)
@@ -164,7 +163,7 @@ func watchForPersistentVolumeClaims(ch chan struct{}, watchNamespace string) {
 			}
 			if len(deletedTags) > 0 {
 				if provisionedByAwsEfs(newPVC) {
-					efsClient.deleteEFSVolumeTags(parseAWSEFSVolumeID(volumeID), deletedTags)
+					efsClient.deleteEFSVolumeTags(parseAWSEFSVolumeID(volumeID), deletedTags, *oldPVC.Spec.StorageClassName)
 				}
 				if provisionedByAwsEbs(newPVC) {
 					ec2Client.deleteEBSVolumeTags(volumeID, deletedTags, *oldPVC.Spec.StorageClassName)
